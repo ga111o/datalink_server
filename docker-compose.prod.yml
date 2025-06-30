@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  datalink-server:
+    image: ga111o/datalink-server:latest
+    container_name: datalink-server-prod
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-22123}:8080"
+    volumes:
+      - ./uploads:/data/uploads
+      - ./logs:/data/logs
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-5000}
+      - FILE_EXPIRATION_HOURS=${FILE_EXPIRATION_HOURS:-24}
+      - CLEANUP_INTERVAL_HOURS=${CLEANUP_INTERVAL_HOURS:-1}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - datalink-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  datalink-network:
+    driver: bridge 

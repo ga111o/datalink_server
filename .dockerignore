@@ -1,0 +1,34 @@
+# Ignore uploads directory (we'll mount it as volume)
+uploads/
+*.tar.gz
+
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Docker files from context
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Ignore documentation
+README.md
+*.md
+
+# Ignore test files
+test_*
+*.test
+
+# Ignore temporary files
+*.tmp
+*.log
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db 

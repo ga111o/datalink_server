@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  datalink-server:
+    build: .
+    container_name: datalink-server
+    restart: unless-stopped
+    ports:
+      - "22123:8080"
+    volumes:
+      - ./uploads:/data/uploads
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+      - MAX_FILE_SIZE_MB=5000
+      - FILE_EXPIRATION_HOURS=24
+      - CLEANUP_INTERVAL_HOURS=1
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - datalink-network
+
+networks:
+  datalink-network:
+    driver: bridge 
