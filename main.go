@@ -183,52 +183,56 @@ func (fm *FileManager) recoverFromFilesystem() {
 
 	pattern := regexp.MustCompile(`^(\d{8})_(\d{8}_\d{6})_(.+\.tar\.gz)$`)
 
-	fm.mu.Lock()
-	defer fm.mu.Unlock()
-
 	recovered := 0
-	for _, file := range files {
-		if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
-			continue
+	func() {
+		fm.mu.Lock()
+		defer fm.mu.Unlock()
+
+		for _, file := range files {
+			if file.IsDir() || strings.HasPrefix(file.Name(), ".") {
+				continue
+			}
+
+			matches := pattern.FindStringSubmatch(file.Name())
+			if len(matches) != 4 {
+				log.Printf("Skipping file with unexpected format: %s", file.Name())
+				continue
+			}
+
+			id := matches[1]
+			timestampStr := matches[2]
+			originalName := matches[3]
+
+			if _, exists := fm.metadata[id]; exists {
+				continue
+			}
+
+			uploadTime, err := time.Parse("20060102_150405", timestampStr)
+			if err != nil {
+				log.Printf("Error parsing timestamp for file %s: %v", file.Name(), err)
+				continue
+			}
+
+			meta := &FileMetadata{
+				ID:           id,
+				OriginalName: originalName,
+				StoredName:   file.Name(),
+				UploadTime:   uploadTime,
+				ExpiresAt:    uploadTime.Add(ExpirationTime),
+			}
+
+			fm.metadata[id] = meta
+			fm.idToFile[id] = file.Name()
+			fm.usedIDs[id] = true
+			recovered++
 		}
-
-		matches := pattern.FindStringSubmatch(file.Name())
-		if len(matches) != 4 {
-			log.Printf("Skipping file with unexpected format: %s", file.Name())
-			continue
-		}
-
-		id := matches[1]
-		timestampStr := matches[2]
-		originalName := matches[3]
-
-		if _, exists := fm.metadata[id]; exists {
-			continue
-		}
-
-		uploadTime, err := time.Parse("20060102_150405", timestampStr)
-		if err != nil {
-			log.Printf("Error parsing timestamp for file %s: %v", file.Name(), err)
-			continue
-		}
-
-		meta := &FileMetadata{
-			ID:           id,
-			OriginalName: originalName,
-			StoredName:   file.Name(),
-			UploadTime:   uploadTime,
-			ExpiresAt:    uploadTime.Add(ExpirationTime),
-		}
-
-		fm.metadata[id] = meta
-		fm.idToFile[id] = file.Name()
-		fm.usedIDs[id] = true
-		recovered++
-	}
+	}()
 
 	if recovered > 0 {
 		log.Printf("Recovered metadata for %d files from filesystem", recovered)
-		fm.saveMetadata()
+		if err := fm.saveMetadata(); err != nil {
+			log.Printf("Error saving metadata after recovery: %v", err)
+		}
 	}
 }
 
